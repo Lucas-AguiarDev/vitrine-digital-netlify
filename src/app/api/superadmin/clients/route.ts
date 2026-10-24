@@ -53,7 +53,7 @@ export async function GET(req: NextRequest) {
       profiles!inner(
         id,
         full_name,
-        email: auth_email
+        email
       )
     `)
     .order('created_at', { ascending: false })

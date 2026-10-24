@@ -370,7 +370,9 @@ const PLAN_LABELS: Record<string, { label: string; color: string }> = {
 }
 
 export default function SuperAdminPage() {
-  const [authed, setAuthed] = useState(false)
+  const [authed, setAuthed] = useState(() => {
+    try { return !!localStorage.getItem('sb_token') } catch { return false }
+  })
   const [clients, setClients] = useState<Client[]>([])
   const [stats, setStats] = useState<Stats | null>(null)
   const [loading, setLoading] = useState(false)
