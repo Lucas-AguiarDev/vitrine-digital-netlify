@@ -45,7 +45,6 @@ export async function POST(request: NextRequest) {
     const { data, error } = await supabase.auth.signInWithPassword({ email, password })
 
     if (error) {
-      // Mensagem genérica — não revelar se email existe ou não
       return NextResponse.json(
         { error: { message: 'Credenciais inválidas' } },
         { status: 401 }
@@ -55,9 +54,8 @@ export async function POST(request: NextRequest) {
     // Login bem-sucedido — resetar rate limit
     resetRateLimit(`login:${ip}`)
 
-    return NextResponse.json({ data: { user: data.user?.id } })
+    return NextResponse.json({ token: data.session?.access_token, data: { user: data.user?.id } })
   } catch {
-    // NUNCA retornar stack trace em produção
     return NextResponse.json(
       { error: { message: 'Erro interno' } },
       { status: 500 }
