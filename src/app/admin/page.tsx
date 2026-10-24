@@ -123,7 +123,14 @@ export default function AdminPage() {
       const json = await res.json()
       if (json.data?.url) {
         setProductForm(s => ({ ...s, image_url: json.data.url }))
+      } else {
+        const msg = json.error?.message || 'Erro ao fazer upload'
+        alert(`❌ ${msg}`)
+        console.error('[upload]', json)
       }
+    } catch (err) {
+      alert('❌ Erro de conexão ao fazer upload')
+      console.error('[upload]', err)
     } finally {
       setUploadingImage(false)
     }
