@@ -70,13 +70,24 @@ export async function POST(request: NextRequest) {
   const path = `${store.id}/products/${filename}`
   const bucket = process.env.SUPABASE_STORAGE_BUCKET || 'vitrine-uploads'
 
+  // Garante que o bucket existe e é público
+  const { data: buckets } = await supabase.storage.listBuckets()
+  const bucketExists = buckets?.some(b => b.name === bucket)
+  if (!bucketExists) {
+    const { error: bucketErr } = await supabase.storage.createBucket(bucket, { public: true })
+    if (bucketErr) {
+      console.error('[admin/upload] criar bucket', bucketErr.message)
+      return NextResponse.json({ error: { message: 'Erro ao configurar storage' } }, { status: 500 })
+    }
+  }
+
   const { error: uploadError } = await supabase.storage
     .from(bucket)
     .upload(path, buffer, { contentType: file.type, upsert: false })
 
   if (uploadError) {
     console.error('[admin/upload]', uploadError.message)
-    return NextResponse.json({ error: { message: 'Erro ao fazer upload' } }, { status: 500 })
+    return NextResponse.json({ error: { message: `Erro ao fazer upload: ${uploadError.message}` } }, { status: 500 })
   }
 
   const { data: urlData } = supabase.storage.from(bucket).getPublicUrl(path)
