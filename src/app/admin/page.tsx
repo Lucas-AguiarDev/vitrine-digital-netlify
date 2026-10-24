@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import type { Store, Product } from '@/types'
 
-type Tab = 'produtos' | 'loja' | 'vitrine'
+type Tab = 'produtos' | 'loja' | 'vitrine' | 'senha'
 
 export default function AdminPage() {
   const router = useRouter()
@@ -20,9 +20,15 @@ export default function AdminPage() {
   const [editingProduct, setEditingProduct] = useState<Product | null>(null)
   const [productForm, setProductForm] = useState({
     name: '', description: '', price: '', category: 'Roupas',
-    sizes: '', colors: '', active: true, featured: false,
+    sizes: '', colors: '', active: true, featured: false, image_url: '',
   })
   const [saving, setSaving] = useState(false)
+  const [uploadingImage, setUploadingImage] = useState(false)
+
+  // ── Senha form ────────────────────────────────────────────────────────────
+  const [senhaForm, setSenhaForm] = useState({ new_password: '', confirm: '' })
+  const [savingSenha, setSavingSenha] = useState(false)
+  const [senhaMsg, setSenhaMsg] = useState('')
 
   // ── Loja form ─────────────────────────────────────────────────────────────
   const [storeForm, setStoreForm] = useState({ name: '', description: '', whatsapp: '', accent_color: '#7c3aed', banner_message: '' })
@@ -83,7 +89,7 @@ export default function AdminPage() {
   // ── Produto ───────────────────────────────────────────────────────────────
   function openNewProduct() {
     setEditingProduct(null)
-    setProductForm({ name: '', description: '', price: '', category: 'Roupas', sizes: '', colors: '', active: true, featured: false })
+    setProductForm({ name: '', description: '', price: '', category: 'Roupas', sizes: '', colors: '', active: true, featured: false, image_url: '' })
     setShowProductForm(true)
   }
 
@@ -98,8 +104,57 @@ export default function AdminPage() {
       colors: p.colors.join(', '),
       active: p.active,
       featured: p.featured,
+      image_url: p.image_url || '',
     })
     setShowProductForm(true)
+  }
+
+  async function handleImageUpload(file: File) {
+    if (!token) return
+    setUploadingImage(true)
+    try {
+      const fd = new FormData()
+      fd.append('file', file)
+      const res = await fetch('/api/admin/upload', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        body: fd,
+      })
+      const json = await res.json()
+      if (json.data?.url) {
+        setProductForm(s => ({ ...s, image_url: json.data.url }))
+      }
+    } finally {
+      setUploadingImage(false)
+    }
+  }
+
+  async function saveSenha(e: React.FormEvent) {
+    e.preventDefault()
+    if (!token) return
+    if (senhaForm.new_password !== senhaForm.confirm) {
+      setSenhaMsg('As senhas não coincidem.')
+      return
+    }
+    setSavingSenha(true)
+    setSenhaMsg('')
+    try {
+      const res = await fetch('/api/admin/password', {
+        method: 'POST',
+        headers: authHeaders(token),
+        body: JSON.stringify({ new_password: senhaForm.new_password }),
+      })
+      const json = await res.json()
+      if (json.data?.updated) {
+        setSenhaMsg('Senha alterada com sucesso!')
+        setSenhaForm({ new_password: '', confirm: '' })
+      } else {
+        setSenhaMsg(json.error?.message || 'Erro ao alterar senha.')
+      }
+    } finally {
+      setSavingSenha(false)
+      setTimeout(() => setSenhaMsg(''), 4000)
+    }
   }
 
   async function saveProduct() {
@@ -115,6 +170,7 @@ export default function AdminPage() {
         colors: productForm.colors.split(',').map(s => s.trim()).filter(Boolean),
         active: productForm.active,
         featured: productForm.featured,
+        image_url: productForm.image_url || null,
       }
 
       const url = editingProduct ? `/api/admin/products/${editingProduct.id}` : '/api/admin/products'
@@ -205,15 +261,15 @@ export default function AdminPage() {
 
       {/* Tabs */}
       <div className="flex border-b border-gray-800">
-        {(['produtos', 'loja', 'vitrine'] as Tab[]).map(t => (
+        {(['produtos', 'loja', 'vitrine', 'senha'] as Tab[]).map(t => (
           <button
             key={t}
             onClick={() => setTab(t)}
-            className={`px-5 py-3 text-sm font-medium capitalize transition-colors ${
+            className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${
               tab === t ? 'border-b-2 border-purple-500 text-purple-400' : 'text-gray-500 hover:text-gray-300'
             }`}
           >
-            {t === 'vitrine' ? '🔗 Minha Vitrine' : t === 'loja' ? '⚙️ Configurações' : '📦 Produtos'}
+            {t === 'vitrine' ? '🔗 Vitrine' : t === 'loja' ? '⚙️ Config' : t === 'senha' ? '🔑 Senha' : '📦 Produtos'}
           </button>
         ))}
       </div>
@@ -318,6 +374,36 @@ export default function AdminPage() {
           </form>
         )}
 
+        {/* ── TAB SENHA ── */}
+        {tab === 'senha' && (
+          <form onSubmit={saveSenha} className="space-y-4 max-w-sm">
+            <h2 className="font-semibold">Alterar senha</h2>
+
+            {senhaMsg && (
+              <div className={`text-sm px-3 py-2 rounded-lg ${senhaMsg.includes('sucesso') ? 'bg-green-900/40 text-green-300' : 'bg-red-900/40 text-red-300'}`}>
+                {senhaMsg}
+              </div>
+            )}
+
+            <Field label="Nova senha (mínimo 8 caracteres)">
+              <input type="password" value={senhaForm.new_password}
+                onChange={e => setSenhaForm(s => ({ ...s, new_password: e.target.value }))}
+                minLength={8} required className="input" placeholder="••••••••" />
+            </Field>
+
+            <Field label="Confirmar nova senha">
+              <input type="password" value={senhaForm.confirm}
+                onChange={e => setSenhaForm(s => ({ ...s, confirm: e.target.value }))}
+                minLength={8} required className="input" placeholder="••••••••" />
+            </Field>
+
+            <button type="submit" disabled={savingSenha}
+              className="bg-purple-600 hover:bg-purple-500 disabled:opacity-50 transition-colors px-6 py-2 rounded-lg text-sm font-medium">
+              {savingSenha ? 'Salvando...' : 'Alterar senha'}
+            </button>
+          </form>
+        )}
+
         {/* ── TAB VITRINE ── */}
         {tab === 'vitrine' && store && (
           <div className="space-y-4 max-w-lg">
@@ -399,6 +485,25 @@ export default function AdminPage() {
                 <input type="text" value={productForm.colors} onChange={e => setProductForm(s => ({ ...s, colors: e.target.value }))}
                   className="input" placeholder="Preto, Branco, Azul" />
               </Field>
+              <Field label="Imagem do produto">
+                <div className="space-y-2">
+                  {productForm.image_url && (
+                    <div className="relative w-24 h-24">
+                      <img src={productForm.image_url} alt="" className="w-24 h-24 object-cover rounded-lg" />
+                      <button type="button" onClick={() => setProductForm(s => ({ ...s, image_url: '' }))}
+                        className="absolute -top-1 -right-1 bg-red-600 text-white rounded-full w-5 h-5 text-xs flex items-center justify-center">
+                        ✕
+                      </button>
+                    </div>
+                  )}
+                  <label className={`flex items-center gap-2 px-3 py-2 rounded-lg border border-dashed border-gray-600 cursor-pointer hover:border-purple-500 transition-colors text-sm text-gray-400 ${uploadingImage ? 'opacity-50 pointer-events-none' : ''}`}>
+                    <input type="file" accept="image/jpeg,image/png,image/webp" className="hidden"
+                      onChange={e => { const f = e.target.files?.[0]; if (f) handleImageUpload(f) }} />
+                    {uploadingImage ? '⏳ Enviando...' : '📷 Selecionar imagem (JPG/PNG/WEBP, máx 5MB)'}
+                  </label>
+                </div>
+              </Field>
+
               <div className="flex gap-4">
                 <label className="flex items-center gap-2 text-sm cursor-pointer">
                   <input type="checkbox" checked={productForm.active} onChange={e => setProductForm(s => ({ ...s, active: e.target.checked }))}

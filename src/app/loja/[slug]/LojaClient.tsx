@@ -44,13 +44,26 @@ function whatsappLink(phone: string, message: string) {
   return `https://wa.me/55${clean}?text=${encodeURIComponent(message)}`
 }
 
-function buildOrderMessage(store: Store, cart: CartItem[]) {
+interface CustomerInfo {
+  name: string
+  contact: string
+  address: string
+}
+
+function buildOrderMessage(store: Store, cart: CartItem[], customer?: CustomerInfo) {
   const lines = cart.map(item => {
     const extras = [item.size && `Tamanho: ${item.size}`, item.color && `Cor: ${item.color}`].filter(Boolean).join(' | ')
     return `• ${item.qty}x ${item.product.name}${extras ? ` (${extras})` : ''} — ${formatPrice(item.product.price * item.qty)}`
   })
   const total = cart.reduce((sum, i) => sum + i.product.price * i.qty, 0)
-  return `Olá! Gostaria de fazer um pedido na *${store.name}*:\n\n${lines.join('\n')}\n\n*Total: ${formatPrice(total)}*`
+  let msg = `Olá! Gostaria de fazer um pedido na *${store.name}*:\n\n${lines.join('\n')}\n\n*Total: ${formatPrice(total)}*`
+  if (customer?.name || customer?.contact || customer?.address) {
+    msg += '\n\n*Dados do pedido:*'
+    if (customer.name) msg += `\nNome: ${customer.name}`
+    if (customer.contact) msg += `\nContato: ${customer.contact}`
+    if (customer.address) msg += `\nEndereço: ${customer.address}`
+  }
+  return msg
 }
 
 export default function LojaClient({ store, products }: { store: Store; products: Product[] }) {
@@ -60,6 +73,7 @@ export default function LojaClient({ store, products }: { store: Store; products
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
   const [selectedSize, setSelectedSize] = useState('')
   const [selectedColor, setSelectedColor] = useState('')
+  const [customer, setCustomer] = useState<CustomerInfo>({ name: '', contact: '', address: '' })
 
   const accent = store.accent_color || '#C9376E'
 
@@ -94,7 +108,7 @@ export default function LojaClient({ store, products }: { store: Store; products
     setCart(prev => prev.filter((_, i) => i !== idx))
   }
 
-  const orderLink = whatsappLink(store.whatsapp, buildOrderMessage(store, cart))
+  const orderLink = whatsappLink(store.whatsapp, buildOrderMessage(store, cart, customer))
 
   return (
     <div style={{ '--accent': accent } as React.CSSProperties} className="min-h-screen bg-neutral-50 dark:bg-neutral-950">
@@ -293,15 +307,54 @@ export default function LojaClient({ store, products }: { store: Store; products
                   </div>
                 </div>
 
+                {/* Dados do cliente */}
+                <div className="mb-5 space-y-3">
+                  <p className="text-xs font-semibold text-neutral-500 uppercase tracking-wide">Seus dados</p>
+                  <div>
+                    <label className="block text-xs text-neutral-500 mb-1">Nome *</label>
+                    <input
+                      type="text"
+                      placeholder="Seu nome completo"
+                      value={customer.name}
+                      onChange={e => setCustomer(s => ({ ...s, name: e.target.value }))}
+                      className="w-full px-3 py-2 rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-sm text-neutral-900 dark:text-white placeholder-neutral-400 focus:outline-none focus:ring-2"
+                      style={{ '--tw-ring-color': accent } as React.CSSProperties}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-neutral-500 mb-1">WhatsApp / Telefone *</label>
+                    <input
+                      type="tel"
+                      placeholder="(51) 99999-9999"
+                      value={customer.contact}
+                      onChange={e => setCustomer(s => ({ ...s, contact: e.target.value }))}
+                      className="w-full px-3 py-2 rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-sm text-neutral-900 dark:text-white placeholder-neutral-400 focus:outline-none focus:ring-2"
+                      style={{ '--tw-ring-color': accent } as React.CSSProperties}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-neutral-500 mb-1">Endereço de entrega</label>
+                    <textarea
+                      placeholder="Rua, número, bairro, cidade..."
+                      value={customer.address}
+                      onChange={e => setCustomer(s => ({ ...s, address: e.target.value }))}
+                      rows={2}
+                      className="w-full px-3 py-2 rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-sm text-neutral-900 dark:text-white placeholder-neutral-400 focus:outline-none focus:ring-2 resize-none"
+                      style={{ '--tw-ring-color': accent } as React.CSSProperties}
+                    />
+                  </div>
+                </div>
+
                 <a
-                  href={orderLink}
+                  href={customer.name && customer.contact ? orderLink : undefined}
+                  onClick={e => { if (!customer.name || !customer.contact) e.preventDefault() }}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex items-center justify-center gap-2 w-full py-3 rounded-xl text-white font-semibold transition-opacity hover:opacity-90"
+                  className={`flex items-center justify-center gap-2 w-full py-3 rounded-xl text-white font-semibold transition-opacity ${!customer.name || !customer.contact ? 'opacity-40 cursor-not-allowed' : 'hover:opacity-90'}`}
                   style={{ backgroundColor: '#25D366' }}
                 >
                   <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
-                  Finalizar via WhatsApp
+                  {customer.name && customer.contact ? 'Finalizar via WhatsApp' : 'Preencha nome e contato'}
                 </a>
               </>
             )}
