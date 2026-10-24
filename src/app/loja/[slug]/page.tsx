@@ -2,6 +2,10 @@ import { notFound } from 'next/navigation'
 import { createServiceClient } from '@/lib/supabase/server'
 import LojaClient from './LojaClient'
 
+// Sempre busca dados frescos — nunca usa cache estático
+export const revalidate = 0
+export const dynamic = 'force-dynamic'
+
 interface Props {
   params: { slug: string }
 }
