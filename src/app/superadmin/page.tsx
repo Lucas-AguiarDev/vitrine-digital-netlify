@@ -134,10 +134,11 @@ function NewClientModal({ onClose, onCreated }: { onClose: () => void; onCreated
     whatsapp: '',
     plan: 'starter' as const,
     setup_fee_paid: false,
+    temp_password: '',
   })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const [result, setResult] = useState<{ store_url: string; admin_url: string } | null>(null)
+  const [result, setResult] = useState<{ store_url: string; admin_url: string; temp_password: string } | null>(null)
 
   function autoSlug(value: string) {
     return value
@@ -170,7 +171,7 @@ function NewClientModal({ onClose, onCreated }: { onClose: () => void; onCreated
     const json = await res.json()
 
     if (res.ok) {
-      setResult({ store_url: json.client.store_url, admin_url: json.client.admin_url })
+      setResult({ store_url: json.client.store_url, admin_url: json.client.admin_url, temp_password: form.temp_password })
       onCreated()
     } else {
       setError(json.error ?? 'Erro ao criar cliente')
@@ -198,9 +199,23 @@ function NewClientModal({ onClose, onCreated }: { onClose: () => void; onCreated
               </svg>
             </div>
             <h3 className="text-white font-semibold mb-1">Cliente criado!</h3>
-            <p className="text-neutral-400 text-sm mb-6">E-mail de redefinição de senha foi enviado automaticamente.</p>
+            <p className="text-neutral-400 text-sm mb-4">Envie as credenciais abaixo para o cliente acessar o painel.</p>
 
             <div className="space-y-3 text-left">
+              {result.temp_password && (
+                <div className="bg-amber-950 border border-amber-800 rounded-lg p-3">
+                  <p className="text-xs text-amber-400 font-medium mb-1">🔑 Senha temporária (envie ao cliente)</p>
+                  <div className="flex gap-2 items-center">
+                    <code className="flex-1 text-amber-200 text-sm font-mono">{result.temp_password}</code>
+                    <button
+                      onClick={() => navigator.clipboard?.writeText(result.temp_password).catch(() => {})}
+                      className="px-2 py-1 bg-amber-800 hover:bg-amber-700 text-amber-100 rounded text-xs transition-colors"
+                    >
+                      Copiar
+                    </button>
+                  </div>
+                </div>
+              )}
               <div>
                 <p className="text-xs text-neutral-400 mb-1">Link da vitrine pública</p>
                 <div className="flex gap-2">
@@ -322,6 +337,20 @@ function NewClientModal({ onClose, onCreated }: { onClose: () => void; onCreated
                   <option value="premium">Premium — R$ 197/mês</option>
                 </select>
               </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-neutral-400 mb-1.5">Senha temporária *</label>
+              <input
+                type="text"
+                value={form.temp_password}
+                onChange={e => handleChange('temp_password', e.target.value)}
+                required
+                minLength={8}
+                placeholder="Mínimo 8 caracteres"
+                className="w-full bg-neutral-800 border border-neutral-700 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 placeholder-neutral-500 font-mono"
+              />
+              <p className="text-xs text-neutral-500 mt-1">O cliente usa essa senha para entrar em /login. Pode trocar depois.</p>
             </div>
 
             <label className="flex items-center gap-3 cursor-pointer">

@@ -29,6 +29,7 @@ const createClientSchema = z.object({
   whatsapp: z.string().min(10).max(20),
   plan: z.enum(['starter', 'pro', 'premium']),
   setup_fee_paid: z.boolean().default(false),
+  temp_password: z.string().min(8).max(72),
 })
 
 // GET /api/superadmin/clients — list all clients with their stores
@@ -88,7 +89,7 @@ export async function POST(req: NextRequest) {
     )
   }
 
-  const { name, email, store_name, store_slug, whatsapp, plan } = parsed.data
+  const { name, email, store_name, store_slug, whatsapp, plan, temp_password } = parsed.data
   const supabase = createServiceClient()
 
   // 1. Check slug uniqueness
@@ -102,12 +103,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Slug já em uso. Escolha outro.' }, { status: 409 })
   }
 
-  // 2. Create auth user (sends invite email automatically)
-  const tempPassword = crypto.randomUUID() + crypto.randomUUID() // random, user will reset
+  // 2. Create auth user with the password defined by superadmin
   const { data: authData, error: authError } = await supabase.auth.admin.createUser({
     email,
-    password: tempPassword,
-    email_confirm: true, // skip email confirmation — we send invite separately
+    password: temp_password,
+    email_confirm: true,
     user_metadata: { full_name: sanitizeText(name) },
   })
 
@@ -143,15 +143,6 @@ export async function POST(req: NextRequest) {
     console.error('[superadmin/clients POST] store error', storeError.message)
     return NextResponse.json({ error: 'Erro ao criar loja' }, { status: 500 })
   }
-
-  // 5. Send password reset so client sets their own password
-  await supabase.auth.admin.generateLink({
-    type: 'recovery',
-    email,
-    options: {
-      redirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/admin`,
-    },
-  })
 
   return NextResponse.json({
     success: true,
