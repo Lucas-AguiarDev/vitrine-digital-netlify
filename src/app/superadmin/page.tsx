@@ -493,15 +493,15 @@ export default function SuperAdminPage() {
         {stats && (
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
             {[
-              { label: 'Total de lojas', value: stats.total_stores, icon: '🏪' },
-              { label: 'Lojas ativas', value: stats.active_stores, icon: '✅' },
-              { label: 'Inativas', value: stats.total_stores - stats.active_stores, icon: '⏸' },
-              { label: 'Pedidos', value: stats.total_orders, icon: '📦' },
+              { label: 'Total de lojas', value: stats.total_stores, color: 'text-white', bg: 'bg-neutral-800', sub: null },
+              { label: 'Lojas ativas', value: stats.active_stores, color: 'text-green-400', bg: 'bg-green-500/10', sub: stats.total_stores > 0 ? `${Math.round(stats.active_stores / stats.total_stores * 100)}% do total` : null },
+              { label: 'Suspensas', value: stats.total_stores - stats.active_stores, color: 'text-neutral-400', bg: 'bg-neutral-800', sub: null },
+              { label: 'Pedidos via WhatsApp', value: stats.total_orders, color: 'text-amber-400', bg: 'bg-amber-500/10', sub: null },
             ].map(stat => (
-              <div key={stat.label} className="bg-neutral-900 border border-neutral-800 rounded-xl p-4">
-                <p className="text-2xl mb-1">{stat.icon}</p>
-                <p className="text-2xl font-bold text-white">{stat.value}</p>
-                <p className="text-xs text-neutral-400 mt-0.5">{stat.label}</p>
+              <div key={stat.label} className={`${stat.bg} border border-neutral-800 rounded-xl p-4`}>
+                <p className={`text-3xl font-bold ${stat.color}`}>{stat.value}</p>
+                <p className="text-xs text-neutral-400 mt-1">{stat.label}</p>
+                {stat.sub && <p className="text-xs text-neutral-500 mt-0.5">{stat.sub}</p>}
               </div>
             ))}
           </div>
