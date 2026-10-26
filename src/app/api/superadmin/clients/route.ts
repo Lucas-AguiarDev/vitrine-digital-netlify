@@ -51,7 +51,7 @@ export async function GET(req: NextRequest) {
       plan,
       active,
       created_at,
-      profiles!inner(
+      profiles(
         id,
         full_name,
         email
